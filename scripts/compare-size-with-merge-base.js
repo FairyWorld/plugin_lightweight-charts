@@ -22,14 +22,41 @@ function run(file, args) {
 	}
 }
 
+// Only use this for static command strings with no dynamic content.
+// This keeps fixed npm commands compatible with Windows shells.
+function runShell(command) {
+	try {
+		return {
+			success: true,
+			output: childProcess.execSync(command, { encoding: 'utf-8', stdio: 'pipe' }).trim(),
+		};
+	} catch (e) {
+		return { success: false, output: e.stderr || e.stdout || e.toString() };
+	}
+}
+
 function runForSuccess(file, args) {
 	runForOutput(file, args);
+}
+
+function runShellForSuccess(command) {
+	runShellForOutput(command);
 }
 
 function runForOutput(file, args) {
 	const res = run(file, args);
 	if (!res.success) {
 		console.error(`Can't execute "${file} ${args.join(' ')}":\n${res.output}`);
+		process.exit(1);
+	}
+
+	return res.output;
+}
+
+function runShellForOutput(command) {
+	const res = runShell(command);
+	if (!res.success) {
+		console.error(`Can't execute "${command}":\n${res.output}`);
 		process.exit(1);
 	}
 
@@ -78,10 +105,10 @@ async function main() {
 	runForSuccess('git', ['checkout', revToCheck]);
 
 	console.log(`Installing dependencies...`);
-	runForSuccess('npm', ['install']);
+	runShellForSuccess('npm install');
 
 	console.log(`Building the library...`);
-	runForSuccess('npm', ['run', 'build:prod']);
+	runShellForSuccess('npm run build:prod');
 
 	const oldSizes = await getSizes();
 
@@ -89,10 +116,10 @@ async function main() {
 	runForSuccess('git', ['checkout', headRev]);
 
 	console.log(`Installing dependencies...`);
-	runForSuccess('npm', ['install']);
+	runShellForSuccess('npm install');
 
 	console.log(`Building the library...`);
-	runForSuccess('npm', ['run', 'build:prod']);
+	runShellForSuccess('npm run build:prod');
 
 	const newSizes = await getSizes();
 

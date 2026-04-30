@@ -39,6 +39,17 @@ function run(file, args) {
 	}
 }
 
+// Only use this for static command strings with no dynamic content.
+// This keeps fixed npm commands compatible with Windows shells.
+function runShell(command) {
+	try {
+		childProcess.execSync(command, { stdio: 'inherit' });
+		return false;
+	} catch (e) {
+		return true;
+	}
+}
+
 function runForFiles(file, baseArgs, files) {
 	if (files.length === 0) {
 		return false;
@@ -52,10 +63,12 @@ function runESLintForFiles(files) {
 		return false;
 	}
 
+	// Staged filenames are untrusted input, so this must avoid shell execution.
 	return runForFiles('node', ['./node_modules/eslint/bin/eslint', '--quiet', '--format=unix'], files);
 }
 
 function runMarkdownLintForFiles(mdFiles) {
+	// Staged filenames are untrusted input, so this must avoid shell execution.
 	return runForFiles('node', ['./node_modules/markdownlint-cli/markdownlint.js'], mdFiles);
 }
 
@@ -75,7 +88,7 @@ function lintFiles(files) {
 	const tsFiles = filterByExt(files, '.ts');
 	const tsxFiles = filterByExt(files, '.tsx');
 	if (tsFiles.length !== 0 || tsxFiles.length !== 0) {
-		hasErrors = run('npm', ['run', 'tsc-verify']) || hasErrors;
+		hasErrors = runShell('npm run tsc-verify') || hasErrors;
 		hasErrors = runESLintForFiles(tsFiles) || hasErrors;
 		hasErrors = runESLintForFiles(tsxFiles) || hasErrors;
 	}
