@@ -30,38 +30,21 @@ function checkGitConflicts(files) {
 	return hasErrors;
 }
 
-function run(cmd) {
+function run(file, args) {
 	try {
-		childProcess.execSync(cmd, { stdio: 'inherit' });
+		childProcess.execFileSync(file, args, { stdio: 'inherit' });
 		return false;
 	} catch (e) {
 		return true;
 	}
 }
 
-function shellEscape(arg) {
-	if (!/[\s"$`]/.test(arg)) {
-		return arg;
-	}
-
-	return `"${arg
-		.replace(/"/g, '\\"')
-		.replace(/\$/g, '\\$')
-		.replace(/`/g, '\\`')
-	}"`;
-}
-
-function runForFiles(cmd, files) {
+function runForFiles(file, baseArgs, files) {
 	if (files.length === 0) {
 		return false;
 	}
 
-	cmd += ' ';
-	for (const file of files) {
-		cmd += `${shellEscape(file)} `;
-	}
-
-	return run(cmd);
+	return run(file, [...baseArgs, ...files]);
 }
 
 function runESLintForFiles(files) {
@@ -69,11 +52,11 @@ function runESLintForFiles(files) {
 		return false;
 	}
 
-	return runForFiles('node ./node_modules/eslint/bin/eslint --quiet --format=unix', files);
+	return runForFiles('node', ['./node_modules/eslint/bin/eslint', '--quiet', '--format=unix'], files);
 }
 
 function runMarkdownLintForFiles(mdFiles) {
-	return runForFiles('node ./node_modules/markdownlint-cli/markdownlint.js', mdFiles);
+	return runForFiles('node', ['./node_modules/markdownlint-cli/markdownlint.js'], mdFiles);
 }
 
 function filterByExt(files, ext) {
@@ -92,7 +75,7 @@ function lintFiles(files) {
 	const tsFiles = filterByExt(files, '.ts');
 	const tsxFiles = filterByExt(files, '.tsx');
 	if (tsFiles.length !== 0 || tsxFiles.length !== 0) {
-		hasErrors = run('npm run tsc-verify') || hasErrors;
+		hasErrors = run('npm', ['run', 'tsc-verify']) || hasErrors;
 		hasErrors = runESLintForFiles(tsFiles) || hasErrors;
 		hasErrors = runESLintForFiles(tsxFiles) || hasErrors;
 	}
@@ -103,7 +86,7 @@ function lintFiles(files) {
 		// yeah, eslint might check code inside markdown files
 		hasErrors = runESLintForFiles(mdFiles) || hasErrors;
 		hasErrors = runMarkdownLintForFiles(mdFiles) || hasErrors;
-		hasErrors = run('node scripts/check-markdown-links.js') || hasErrors;
+		hasErrors = run('node', ['scripts/check-markdown-links.js']) || hasErrors;
 	}
 
 	// markdown react
